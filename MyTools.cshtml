@@ -1,0 +1,323 @@
+﻿@page
+@using System.Text.Json
+@using Microsoft.Extensions.Configuration
+@using System.Net.Http
+@using Microsoft.Extensions.DependencyInjection;
+@using Microsoft.AspNetCore.Http;
+@using System.IdentityModel.Tokens.Jwt
+@model DentistPortal_Client.Pages.DoctorPages.Tools.MyToolsModel
+<header class>
+    <div class="website-search">
+        <form id="live-search" action="" method="post">
+            <div>
+                <input type="text" placeholder="Search" class="text" id="diagnosisInput">
+                @*                <input type="submit" class="submit button" asp-page-handler="Search">
+                *@
+            </div>
+        </form>
+      @*  <div class="menu-main-menu-container">
+            <ul id="menu-main-menu" class="menu">
+                <li id="menu-item-680"
+                    class="menu-item menu-item-type-taxonomy menu-item-object-category menu-item-680">
+                    <a href="../MedicalCases/MyMedicalCases">
+                        My
+                        Cases
+                    </a>
+                </li>
+                <li id="menu-item-693"
+                    class="menu-item menu-item-type-taxonomy menu-item-object-category menu-item-693">
+                    <a href="../MedicalCases/DisplayMedicalCases">Medical Cases</a>
+                </li>
+                <li id="menu-item-31652"
+                    class="menu-item menu-item-type-taxonomy menu-item-object-category menu-item-31652">
+                    <a href="#">
+                        My
+                        Tools
+                    </a>
+                </li>
+                <li id="menu-item-2763"
+                    class="menu-item menu-item-type-taxonomy menu-item-object-category current-post-ancestor current-menu-parent current-post-parent menu-item-2763">
+                    <a href="../Tools/DisplayTools">Add a Tool</a>
+                </li>
+                <li id="menu-item-2763"
+                    class="menu-item menu-item-type-taxonomy menu-item-object-category current-post-ancestor current-menu-parent current-post-parent menu-item-2763">
+                    <a href="../DoctorPages/Clinics/DisplayClinics">Clinics</a>
+                </li>
+
+            </ul>
+        </div>*@
+    </div>
+</header>
+@{
+    int counter = 0;
+    IConfiguration config = new ConfigurationBuilder()
+              .AddJsonFile("appsettings.json")
+              .AddEnvironmentVariables()
+              .Build();
+    var httpClient = HttpContext.RequestServices.GetService<IHttpClientFactory>();
+    var jwt = new JwtSecurityTokenHandler().ReadJwtToken(HttpContext.Session.GetString("Token"));
+    var client = httpClient.CreateClient();
+    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", HttpContext.Session.GetString("Token"));
+    client.BaseAddress = new Uri(config["BaseAddress"]);
+    string req;
+    List<string> imageUrls = new();
+    <section class="section" style="margin-bottom:50px;">
+        <div class="container">
+            <div class="row gy-4 d-flex justify-content-between" id="myList">
+                @foreach (var tool in Model.Tools)
+                {
+                    imageUrls = new();
+                    req = string.Empty;
+                    req = await client.GetStringAsync($"api/get-tool-pics/{tool.Id}");
+                    if (req is not null)
+                    {
+                        var options = new JsonSerializerOptions
+                    {
+                        WriteIndented = true,
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        DictionaryKeyPolicy = JsonNamingPolicy.CamelCase
+                    };
+                        imageUrls = JsonSerializer.Deserialize<List<string>>(req, options);
+                    }
+
+                     
+                        <div class="card col-lg-4  col-md-6 mycard li" style="width: 20rem;">
+                            <div id=@("carouselExampleControls"+@counter) class="carousel slide" data-bs-ride="carousel">
+                                <div class="carousel-inner text-center mt-2">
+                                @foreach (var image in imageUrls)
+                                {
+                                    if (image == imageUrls[0])
+                                    {
+                                        <div class="carousel-item active">
+                                            <img src=@image class="card-img-top" alt="Card image cap" style="height: 293px; max-width:100%" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="carousel-item">
+                                            <img src=@image class="card-img-top" alt="Card image cap" style="height: 293px; max-width:100%" />
+                                        </div>
+                                    }
+                                }
+                                </div>
+                                <button class="carousel-control-prev" type="button" data-bs-target=@("#carouselExampleControls" + @counter) data-bs-slide="prev">
+                                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Previous</span>
+                                </button>
+                                <button class="carousel-control-next" type="button" data-bs-target=@("#carouselExampleControls" + @counter) data-bs-slide="next">
+                                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Next</span>
+                                </button>
+                            </div>
+                            <div class="setting">
+                                <div class="dropdown">
+                                    <button class="dropdown-toggle sett" type="button" id="dropdownMenu2" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenu2">
+
+                                        <!-- Button trigger delete modal -->
+                                        <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target=@("#deleteToolModal" + @counter)>Delete</button></li>
+
+                                        <!-- Button trigger edit modal -->
+                                        <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target=@("#editToolModal" + @counter)>Edit</button></li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="card-body mycardbody">
+                                <div class=" card-text ToolName">@tool.ToolName</div>
+
+                                <!-- Button trigger modal -->
+                                <button type="button" class="btn mybtn" data-bs-toggle="modal" data-bs-target=@("#viewToolModal" + @counter)>
+                                    More Details
+                                </button>
+
+                                <!-- Modal -->
+                                <div class="modal fade" id=@("viewToolModal"+@counter) tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="exampleModalLongTitle" style="color:black">Tool Details</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="details">
+                                                    <div class="ToolDescription" style="height:auto">
+                                                        @tool.Description
+                                                    </div>
+                                                    <div class="ToolPrice text-center">
+                                                        <span style="font-size: larger; font-weight: 400;">Price:</span>
+                                                        <span>@tool.ToolPrice</span>
+                                                        <span style="font-size: larger; font-weight: 400;">LE</span>
+                                                    </div>
+                                                    <div class="line" style="column-gap:20px;">
+                                                        <div class="sellername">
+                                                            <i class="fa-solid fa-user-doctor-hair"></i>
+                                                            <span>@tool.Dentist.Username</span>
+                                                        </div>
+                                                        <div class="contactNumb">
+                                                            <i class="bi bi-telephone-fill"></i>
+                                                            <span> @tool.ContactNumber</span>
+                                                        </div>
+                                                        <div class="loction">
+                                                            <i class="bi bi-geo-alt-fill"></i>
+                                                            <span>@tool.SellerLocation</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                       
+               
+
+                    <!-- Edit Modal -->
+                    <div class="modal fade" id=@("editToolModal"+@counter) tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="exampleModalLongTitle" style="color:black">Tool Details</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                                        <div class="row gy-3">
+                                            <input name="toolDto.SellerIdDoctor" value="@tool.SellerIdDoctor" hidden>
+                                            <input name="id" value="@tool.Id" hidden>
+
+                                            <div class="col-sm-6">
+                                                <input type="text" class="form-control" name="toolDto.ToolName" value="@tool.ToolName" required>
+                                                <div class="invalid-feedback">
+                                                    Please fill the tool name.
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <input type="text" class="form-control" name="toolDto.ToolPrice" value="@tool.ToolPrice" required>
+                                                <div class="invalid-feedback">
+                                                    Please fill the tool price.
+                                                </div>
+                                            </div>
+                                            <div class="col-md-12">
+                                                <input type="text" class="form-control" name="toolDto.ContactNumber" value="@tool.ContactNumber" required>
+                                                <div class="invalid-feedback">
+                                                    Please fill your contact number.
+                                                </div>
+                                            </div>
+                                            <div class="col-md-12">
+                                                <input type="text" class="form-control" name="toolDto.SellerLocation" value="@tool.SellerLocation" required>
+                                                <div class="invalid-feedback">
+                                                    Please fill your location.
+                                                </div>
+                                            </div>
+                                            <div class="col-md-12">
+                                                <textarea name="toolDto.Description" class="form-control" required>@tool.Description</textarea>
+                                                <div class="invalid-feedback">
+                                                    Please fill the tool Description.
+                                                </div>
+                                            </div>
+                                            <div class="col-md-12">
+                                                @if (tool.ToolStatus == "Available")
+                                                {
+                                                    <label>Tool Status</label>
+                                                    <input type="radio" name="toolDto.ToolStatus" id="Available" value="Available" checked="checked" required>
+                                                    <label id="Avaliable">Avaliable</label>
+                                                    <input type="radio" name="toolDto.ToolStatus" id="Sold" value="Sold" required>
+                                                    <label id="Sold">sold</label>
+                                                }
+                                                else
+                                                {
+                                                    <label>Tool Status</label>
+                                                    <input type="radio" name="toolDto.ToolStatus" id="Available" value="Available" required>
+                                                    <label id="Avaliable">Avaliable</label>
+                                                    <input type="radio" name="toolDto.ToolStatus" id="Sold" value="Sold" checked="checked" required>
+                                                    <label id="Sold">sold</label>
+                                                }
+                                            </div>
+                                            <div class="col-sm">
+                                                @foreach (var image in imageUrls)
+                                                {
+                                                    <img src=@image alt="..." width="90" height="90" />
+                                                }
+                                                <label>Upload new Tool pictures</label>
+                                                <input name="files" class="form-control" value="@tool.PicturePaths" type="file">
+                                            </div>
+                                            <div class="col-md-12">
+                                                <button asp-page-handler="Edit" type="submit">Submit</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Delete Modal -->
+                    <div class="modal fade" id=@("deleteToolModal"+@counter) tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="exampleModalLabel">Delete Tool</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    Are you sure you want to delete this tool?
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    <form method="post">
+                                        <button asp-page-handler="Delete" asp-route-id=@tool.Id type="submit" class="btn btn-danger">Yes!</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    counter++;
+                }
+            </div>
+        </div>
+    </section>
+}
+@if (@Model.Msg != null)
+{
+    <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    if (@Model.Status == "success")
+    {
+        <script type="text/javascript">
+            Swal.fire({
+                icon: 'success',
+                title: '@Model.Msg',
+                showConfirmButton: false,
+                timer: 1500
+            })
+        </script>
+    }
+    else
+    {
+        <script type="text/javascript">
+            Swal.fire({
+                icon: 'error',
+                title: '@Model.Msg',
+                showConfirmButton: false,
+                timer: 1500
+            })
+        </script>
+    }
+}
+@section styles{
+    <link rel="stylesheet" href="~/css/ToolsStyleSheet.css" />
+    <link rel="stylesheet" href="~/css/SearchbarStyleSheet.css" />
+}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $("#diagnosisInput").on("keyup", function () {
+            var value = $(this).val().toLowerCase();
+            $("#myList .li").filter(function () {
+                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+            });
+        });
+    });
+</script>
